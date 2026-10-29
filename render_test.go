@@ -84,6 +84,7 @@ func pageFS() fstest.MapFS {
 		"page-boom.html":          &fstest.MapFile{Data: []byte(`{{define "content"}}{{boom}}{{end}}`)},
 		"partials/row.html":       &fstest.MapFile{Data: []byte(`<li>{{.}}</li>`)},
 		"partials/banner.html":    &fstest.MapFile{Data: []byte(`<b>Promo</b>`)},
+		"partials/fragment.html":  &fstest.MapFile{Data: []byte(`<p>fragment {{.Name}}</p>`)},
 	}
 }
 

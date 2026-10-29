@@ -40,3 +40,12 @@ func (r *Renderer) RenderPage(w http.ResponseWriter, name string, data any) erro
 	}
 	return execute(w, "page "+name, tmpl, data)
 }
+
+// RenderHTMX renders partial for an HTMX request and page otherwise. It does
+// not fall back: a missing selected template is an error.
+func (r *Renderer) RenderHTMX(w http.ResponseWriter, req *http.Request, page, partial string, data any) error {
+	if IsHTMX(req) {
+		return r.RenderPartial(w, partial, data)
+	}
+	return r.RenderPage(w, page, data)
+}
