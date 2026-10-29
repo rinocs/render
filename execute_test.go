@@ -2,9 +2,11 @@ package render
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 )
@@ -183,5 +185,64 @@ func TestRenderPageExecutionError(t *testing.T) {
 	}
 	if got := rec.Header().Get("Content-Type"); got != "" {
 		t.Fatalf("Content-Type = %q, want empty", got)
+	}
+}
+
+func TestEscapingAndSafeHTML(t *testing.T) {
+	fsys := fstest.MapFS{
+		"partials/esc.html":  &fstest.MapFile{Data: []byte(`<p>{{.HTML}}</p>`)},
+		"partials/safe.html": &fstest.MapFile{Data: []byte(`<p>{{safeHTML .HTML}}</p>`)},
+	}
+	r := New(fsys, nil)
+	if err := r.Partial("esc", "partials/esc.html"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Partial("safe", "partials/safe.html"); err != nil {
+		t.Fatal(err)
+	}
+	data := map[string]any{"HTML": "<b>x</b>"}
+	rec := newRecorder(t)
+	if err := r.RenderPartial(rec, "esc", data); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := rec.Body.String(), "<p>&lt;b&gt;x&lt;/b&gt;</p>"; got != want {
+		t.Fatalf("escaped body = %q, want %q", got, want)
+	}
+	rec = newRecorder(t)
+	if err := r.RenderPartial(rec, "safe", data); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := rec.Body.String(), "<p><b>x</b></p>"; got != want {
+		t.Fatalf("safeHTML body = %q, want %q", got, want)
+	}
+}
+
+func TestConcurrentRender(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Page("home", "page.html", "layout.html"); err != nil {
+		t.Fatal(err)
+	}
+	const n = 32
+	var wg sync.WaitGroup
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			name := fmt.Sprintf("user-%d", i)
+			rec := httptest.NewRecorder()
+			if err := r.RenderPage(rec, "home", map[string]any{"Title": "Home", "Name": name}); err != nil {
+				errs <- err
+				return
+			}
+			if !strings.Contains(rec.Body.String(), name) {
+				errs <- fmt.Errorf("missing %s", name)
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
 	}
 }
