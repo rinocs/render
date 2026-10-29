@@ -75,6 +75,7 @@ func pageFS() fstest.MapFS {
 		"layout-no-content.html":  &fstest.MapFile{Data: []byte(`<p>{{.Title}}</p>`)},
 		"layout-with-nav.html":    &fstest.MapFile{Data: []byte(`{{define "nav"}}<nav>menu</nav>{{end}}<main>{{template "content" .}}</main>`)},
 		"layout-with-banner.html": &fstest.MapFile{Data: []byte(`<header>{{template "banner" .}}</header><main>{{template "content" .}}</main>`)},
+		"layout-with-if.html":     &fstest.MapFile{Data: []byte(`<title>{{if .Title}}{{.Title}}{{end}}</title><main>{{template "content" .}}</main>`)},
 		"page.html":               &fstest.MapFile{Data: []byte(`{{define "content"}}<p>{{.Name}}</p>{{end}}`)},
 		"standalone.html":         &fstest.MapFile{Data: []byte(`<p>{{.Name}}</p>`)},
 		"page-with-row.html":      &fstest.MapFile{Data: []byte(`{{define "content"}}<ul>{{range .Rows}}{{template "row" .}}{{end}}</ul>{{end}}`)},

@@ -246,3 +246,17 @@ func TestConcurrentRender(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestLayoutIfWithoutElse(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Page("home", "page.html", "layout-with-if.html"); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "home", map[string]any{"Title": "Home", "Name": "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "<p>Ada</p>") {
+		t.Fatalf("body = %s", body)
+	}
+}

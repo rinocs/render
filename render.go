@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"reflect"
 	"strings"
 	"text/template/parse"
 )
@@ -197,6 +198,9 @@ func referencesContent(t *template.Template) bool {
 // types but no walker; this covers the containers a layout can use.
 func walkNode(n parse.Node, fn func(parse.Node)) {
 	if n == nil {
+		return
+	}
+	if v := reflect.ValueOf(n); v.Kind() == reflect.Ptr && v.IsNil() {
 		return
 	}
 	fn(n)
