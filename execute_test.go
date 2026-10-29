@@ -73,3 +73,115 @@ func TestRenderPartialExecutionError(t *testing.T) {
 		t.Fatalf("Content-Type = %q, want empty", got)
 	}
 }
+
+func TestRenderPageWithLayout(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Page("home", "page.html", "layout.html"); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "home", map[string]any{"Title": "Home", "Name": "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"<title>Home</title>", "<p>Ada</p>"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestRenderStandalonePage(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Page("raw", "standalone.html", ""); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "raw", map[string]any{"Name": "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := rec.Body.String(), "<p>Ada</p>"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
+}
+
+func TestPageIncludesPartial(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Partial("row", "partials/row.html"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Page("list", "page-with-row.html", "layout.html"); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "list", map[string]any{"Title": "List", "Rows": []string{"a", "b"}}); err != nil {
+		t.Fatal(err)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "<ul><li>a</li><li>b</li></ul>") {
+		t.Fatalf("body missing rendered rows: %s", body)
+	}
+}
+
+func TestPageUsesLayoutDefine(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Page("nav", "page-with-nav.html", "layout-with-nav.html"); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "nav", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := rec.Body.String(), "<main><section><nav>menu</nav></section></main>"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
+}
+
+func TestLayoutIncludesPartial(t *testing.T) {
+	r := New(pageFS(), nil)
+	if err := r.Partial("banner", "partials/banner.html"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Page("home", "page.html", "layout-with-banner.html"); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "home", map[string]any{"Name": "Ada"}); err != nil {
+		t.Fatal(err)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"<b>Promo</b>", "<p>Ada</p>"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestRenderPageMissing(t *testing.T) {
+	r := New(pageFS(), nil)
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "missing", nil); err == nil {
+		t.Fatal("expected an error for a missing page")
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", rec.Body.String())
+	}
+}
+
+func TestRenderPageExecutionError(t *testing.T) {
+	r := New(pageFS(), template.FuncMap{
+		"boom": func() (string, error) { return "", errors.New("boom") },
+	})
+	if err := r.Page("boom", "page-boom.html", "layout.html"); err != nil {
+		t.Fatal(err)
+	}
+	rec := newRecorder(t)
+	if err := r.RenderPage(rec, "boom", nil); err == nil {
+		t.Fatal("expected an execution error")
+	}
+	if rec.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); got != "" {
+		t.Fatalf("Content-Type = %q, want empty", got)
+	}
+}

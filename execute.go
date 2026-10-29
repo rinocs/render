@@ -29,3 +29,14 @@ func execute(w http.ResponseWriter, label string, tmpl *template.Template, data 
 	}
 	return nil
 }
+
+// RenderPage executes the registered page name. On an execution error nothing
+// is written to w; on success it sets the HTML content type and writes the
+// rendered bytes.
+func (r *Renderer) RenderPage(w http.ResponseWriter, name string, data any) error {
+	tmpl := r.pages[name]
+	if tmpl == nil {
+		return fmt.Errorf("render: page %q not found", name)
+	}
+	return execute(w, "page "+name, tmpl, data)
+}
